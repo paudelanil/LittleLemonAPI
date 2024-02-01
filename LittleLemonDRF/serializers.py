@@ -1,10 +1,10 @@
 
 from rest_framework import serializers 
-from .models import Rating ,MenuItem,Category,Cart
+from .models import (Rating ,MenuItem,Category,Cart,Order,OrderItem)
 from rest_framework.validators import UniqueTogetherValidator 
 from django.contrib.auth.models import User 
  
- 
+
 class RatingSerializer (serializers.ModelSerializer): 
     user = serializers.PrimaryKeyRelatedField( 
     queryset=User.objects.all(), 
@@ -27,13 +27,54 @@ class CategorySerializer(serializers.ModelSerializer):
         fields = ['id','slug','title']
 
 class MenuItemSerializer(serializers.ModelSerializer):
-    user = serializers.PrimaryKeyRelatedField( 
-    queryset=User.objects.all(), 
-    default=serializers.CurrentUserDefault() 
-    ) 
+    
     category = CategorySerializer()
     class Meta:
         model = MenuItem
-        fields = ['title','price','featured','category','user']
+        fields = ['title','price','featured','category']
+        read_only_fields = ['category']
 
         
+class ManagerListSerializer(serializers.ModelSerializer):
+    
+    class Meta:
+        model = User
+        fields  = ['id','username','email']
+class DeliverCrewListSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = User
+        fields = ['id','username','email']
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = User
+        fields = ['username']
+    
+class MenuItemCartSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MenuItem
+        fields = ['id','title','price']
+
+class CartItemSerializer(serializers.ModelSerializer):
+
+    # user = UserSerializer()
+    menuitem  = MenuItemCartSerializer()
+    class Meta:
+        model = Cart
+        fields = ['menuitem','quantity','price']
+
+class CartAddItemSerializer(serializers.ModelSerializer):
+
+    # user = UserSerializer()
+    # menuitem  = MenuItemCartSerializer()
+    class Meta:
+        model = Cart
+        fields = ['menuitem','quantity']
+        extra_kwargs ={        
+            'quantity':{'min_value':1},
+        }
+
+class CartRemoveSerializer(serializers.ModelSerializer):
+    class Meta():
+        model = Cart
+        fields = ['menuitem']
