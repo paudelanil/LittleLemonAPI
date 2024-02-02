@@ -6,6 +6,7 @@ from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseNotFou
 from django.contrib.auth.models import User,Group
 from rest_framework.throttling import UserRateThrottle, AnonRateThrottle
 from rest_framework.response import Response
+from .paginations import MenuItemListPagination
 import math
 from datetime import date
 from decimal import Decimal
@@ -45,7 +46,7 @@ class CategoryView(generics.ListCreateAPIView):
     throttle_classes = [AnonRateThrottle, UserRateThrottle]
     serializer_class = CategorySerializer
     queryset = Category.objects.all()
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsAuthenticated]
     
            
 class MenuItemsView(generics.ListCreateAPIView):
@@ -55,6 +56,7 @@ class MenuItemsView(generics.ListCreateAPIView):
     ordering_fields = ['title', 'price', 'category']
     search_fields = ['title', 'price', 'category__title']
     filterset_fields = ['title', 'price', 'featured']
+    pagination_class = MenuItemListPagination
 
     def get_permissions(self):
         permission_classes = []
