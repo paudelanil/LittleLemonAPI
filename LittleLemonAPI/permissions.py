@@ -7,5 +7,5 @@ class IsManager(permissions.BasePermission):
 
 class IsDeliveryCrew(permissions.BasePermission):
     def has_permission(self, request, view):
-       if request.user.groups.filter(name='Delivery crew').exists():
+       if request.user.groups.filter(name='Delivery Crew').exists():
             return True

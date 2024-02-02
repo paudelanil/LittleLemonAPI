@@ -1,12 +1,14 @@
-from rest_framework import generics
+from rest_framework import generics, status
 from django.shortcuts import get_object_or_404
 from .models import ( Rating,MenuItem,OrderItem,Order,Category,Cart)
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseNotFound, JsonResponse
 from django.contrib.auth.models import User,Group
 from rest_framework.throttling import UserRateThrottle, AnonRateThrottle
+from rest_framework.response import Response
 import math
 from datetime import date
+from decimal import Decimal
 from .serializers import (
    
     MenuItemSerializer,
@@ -20,6 +22,7 @@ from .serializers import (
     SingleOrderSerializer,
     OrderPutSerializer,
     OrderSerializer,
+    OrderItemSerializer,
    
 )
 from .permissions import (
@@ -38,12 +41,19 @@ class RatingsView(generics.ListCreateAPIView):
         return [IsAuthenticated()]
 
         
+class CategoryView(generics.ListCreateAPIView):
+    throttle_classes = [AnonRateThrottle, UserRateThrottle]
+    serializer_class = CategorySerializer
+    queryset = Category.objects.all()
+    permission_classes = [IsAdminUser]
+    
+           
 class MenuItemsView(generics.ListCreateAPIView):
     throttle_classes = [AnonRateThrottle, UserRateThrottle]
     queryset = MenuItem.objects.all()
     serializer_class = MenuItemSerializer
-    ordering_fields = ['title', 'price', 'featured']
-    search_fields = ['title', 'price', 'featured']
+    ordering_fields = ['title', 'price', 'category']
+    search_fields = ['title', 'price', 'category__title']
     filterset_fields = ['title', 'price', 'featured']
 
     def get_permissions(self):
@@ -115,6 +125,7 @@ class DeliveryCrewListView(generics.ListCreateAPIView):
             user = get_object_or_404(User, username=username)
             managers = Group.objects.get(name='Delivery Crew')
             managers.user_set.add(user)
+            return JsonResponse(status=201, data={'message':'User added to Delivery Crew group'})
 
 class DeliveryCrewRemoveView(generics.DestroyAPIView):
     throttle_classes = [AnonRateThrottle, UserRateThrottle]
@@ -172,12 +183,12 @@ class OrderOperationsView(generics.ListCreateAPIView):
     def get_queryset(self, *args, **kwargs):
         if self.request.user.groups.filter(name='Manager').exists() or self.request.user.is_superuser == True :
             query = Order.objects.all()
-        elif self.request.user.groups.filter(name='Delivery crew').exists():
+        elif self.request.user.groups.filter(name='Delivery Crew').exists():
             
             query = Order.objects.filter(delivery_crew=self.request.user)
         else:
             query = Order.objects.filter(user=self.request.user)
-            print(type(self.request.user.username))
+            
         return query
 
     def get_permissions(self):
@@ -189,18 +200,41 @@ class OrderOperationsView(generics.ListCreateAPIView):
         return[permission() for permission in permission_classes]
 
     def post(self, request, *args, **kwargs):
-        cart = Cart.objects.filter(user=request.user)
-        x=cart.values_list()
-        if len(x) == 0:
-            return HttpResponseBadRequest()
-        total = math.fsum([float(x[-1]) for x in x])
-        order = Order.objects.create(user=request.user, status=False, total=total, date=date.today())
-        for i in cart.values():
+        cart_items = Cart.objects.filter(user=request.user)
+        total = self.calculate_total(cart_items)
+        delivery_crew_username = request.data.get('delivery_crew', None)
+        delivery_crew = None
+        if delivery_crew_username:
+            delivery_crew = get_object_or_404(User, username=delivery_crew_username)
+            print(delivery_crew)
+        order = Order.objects.create(user=request.user, status=False,delivery_crew=delivery_crew, total=total, date=date.today())
+        for i in cart_items.values():
             menuitem = get_object_or_404(MenuItem, id=i['menuitem_id'])
             orderitem = OrderItem.objects.create(order=order, menuitem=menuitem, quantity=i['quantity'])
             orderitem.save()
-        cart.delete()
+        cart_items.delete()
         return JsonResponse(status=201, data={'message':'Your order has been placed! Your order number is {}'.format(str(order.id))})
+
+    def calculate_total(self, cart_items):
+        total = Decimal(0)
+        for item in cart_items:
+            total += item.price
+        return total
+
+
+
+        #     cart = Cart.objects.filter(user=self.request.user)
+        # x=cart.values_list()
+        # if len(x) == 0:
+        #     return HttpResponseBadRequest()
+        # total = math.fsum([float(x[-1]) for x in x])
+        # order = Order.objects.create(user=request.user, status=False, total=total, date=date.today())
+        # for i in cart.values():
+        #     menuitem = get_object_or_404(MenuItem, id=i['menuitem_id'])
+        #     orderitem = OrderItem.objects.create(order=order, menuitem=menuitem, quantity=i['quantity'])
+        #     orderitem.save()
+        # cart.delete()
+        # return JsonResponse(status=201, data={'message':'Your order has been placed! Your order number is {}'.format(str(order.id))})
 
 class SingleOrderView(generics.ListCreateAPIView):
     throttle_classes = [AnonRateThrottle, UserRateThrottle]

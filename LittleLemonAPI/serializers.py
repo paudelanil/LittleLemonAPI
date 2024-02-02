@@ -24,15 +24,16 @@ class RatingSerializer (serializers.ModelSerializer):
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
-        fields = ['id','slug','title']
+        fields = ['slug']
 
 class MenuItemSerializer(serializers.ModelSerializer):
     
-    category = CategorySerializer()
-    class Meta:
+    # category = CategorySerializer()
+    class Meta():
         model = MenuItem
-        fields = ['title','price','featured','category']
-        read_only_fields = ['category']
+        fields = ['id','title','price','featured','category']
+    
+        
 
         
 class ManagerListSerializer(serializers.ModelSerializer):
@@ -95,7 +96,12 @@ class SingleOrderSerializer(serializers.ModelSerializer):
         model = OrderItem
         fields = ['menuitem','quantity']
 
+class OrderItemSerializer(serializers.ModelSerializer):
+    menuitem = SingleHelperSerializer()
 
+    class Meta:
+        model = OrderItem
+        fields = ['menuitem', 'quantity', 'unit_price', 'price']
 class OrderPutSerializer(serializers.ModelSerializer):
     class Meta():
         model = Order
