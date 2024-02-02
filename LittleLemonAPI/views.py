@@ -54,7 +54,7 @@ class MenuItemsView(generics.ListCreateAPIView):
     queryset = MenuItem.objects.all()
     serializer_class = MenuItemSerializer
     ordering_fields = ['title', 'price', 'category']
-    search_fields = ['title', 'price', 'category__title']
+    search_fields = ['title', 'price', 'category__slug']
     filterset_fields = ['title', 'price', 'featured']
     pagination_class = MenuItemListPagination
 
